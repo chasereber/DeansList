@@ -1,0 +1,70 @@
+from bs4 import BeautifulSoup
+import requests
+from deans_list import DeansList
+import time
+import csv
+
+def psu_lookup(name):
+
+    url = 'http://www.work.psu.edu/cgi-bin/ldap/ldap_query.cgi'
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36'}
+    data = {
+    'sn':'',
+    'cn': name,
+    'uid': '',
+    'mail': '',
+    'full': 0,
+    'submit': 'Search'
+    }
+
+    with requests.Session() as s:
+        r = s.post(url, headers=headers, data=data)
+        soup = BeautifulSoup(r.content, 'html5lib')
+        tables = soup.find_all('table', attrs={'border': "0"})
+        for table in tables:
+            if table is None:
+                continue
+            table_body = table.find('tbody')
+            rows = table_body.find_all('tr')
+            data=[]
+            for row in rows:
+                cols = row.find_all('td')
+                cols = [ele.text.strip() for ele in cols]
+                data.append([ele for ele in cols if ele])
+            try:
+                email_s = data[3][0]
+            except Exception:
+                pass
+                print("Coudlnt find " + name)
+            if len(email_s) == 0:
+                continue
+            if "\n\n" not in email_s:
+                emails = [email_s]
+            else:
+                emails = [email_s.split("\n\n")[0]]
+            emails.insert(0, data[1][0])
+            return [emails]
+
+
+fields = ['Name', 'Email']
+file = 'DeansList.csv'
+finalArray = []
+some_list = ('chase reber', 'samer daher', 'maxwell forcey', 'christoher lassen')
+
+
+for i in DeansList:
+    try:
+        temp = (psu_lookup(i))
+        if not temp is None:
+            finalArray.append(temp)
+            time.sleep(1)
+        else:
+            pass
+    except:
+        ConnectionError
+
+with open ('DeansList.csv', 'w', newline='') as file:
+    writer = csv.writer(file)
+    writer.writerows(finalArray)
+
+print("File written")
